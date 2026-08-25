@@ -1,0 +1,15 @@
+{
+  "hosting": {
+    "site": "expotrack",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "cleanUrls": true
+  },
+  "database": {
+    "rules": "database.rules.json"
+  }
+}

@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ExpenseFlow | Expense Manager</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+        <div class="auth-brand">
+            <div class="logo-icon">₹</div>
+            <div>
+                <h2>ExpenseFlow</h2>
+                <p data-i18n="Track every payment smartly">Track every payment smartly</p>
+            </div>
+        </div>
+
+        <div class="auth-tabs">
+            <button type="button" class="auth-tab active" data-auth-mode="login" data-i18n="Login">Login</button>
+            <button type="button" class="auth-tab" data-auth-mode="signup" data-i18n="Sign Up">Sign Up</button>
+        </div>
+
+        <form id="authForm" class="auth-form">
+            <div class="input-group">
+                <label for="authUsername" data-i18n="Username">Username</label>
+                <input type="text" id="authUsername" placeholder="Enter username" required>
+            </div>
+
+            <div class="input-group">
+                <label for="authPassword" data-i18n="Password">Password</label>
+                <input type="password" id="authPassword" placeholder="Enter password" required>
+            </div>
+
+            <button type="submit" class="submit-btn auth-submit" data-i18n="Login">Login</button>
+            <button type="button" id="googleLogin" class="google-login" data-i18n="Continue with Google">Continue with Google</button>
+            <button type="button" id="forgotPassword" class="auth-forgot" data-i18n="Forgot password? Send reset email">Forgot password? Send reset email</button>
+            <p id="authMessage" class="auth-message"></p>
+        </form>
+        <select class="language-select" data-language-select aria-label="Choose language">
+            <option value="en">English</option>
+            <option value="hi">हिन्दी</option>
+        </select>
+    </div>
+</div>
+
+<div class="app" id="app" hidden>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+        <div class="logo">
+            <div class="logo-icon">₹</div>
+            <div>
+                <h2>ExpenseFlow</h2>
+                <span data-i18n="Personal Finance">Personal Finance</span>
+            </div>
+        </div>
+
+        <nav>
+
+            <a href="#expenses" class="nav-link" data-view="expenses">
+                <span>☷</span>
+                <span data-i18n="Expenses">Expenses</span>
+            </a>
+
+            <a href="#dashboard" class="nav-link active" data-view="dashboard">
+                <span>▦</span>
+                <span data-i18n="Dashboard">Dashboard</span>
+            </a>
+
+            <a href="#analytics" class="nav-link" data-view="analytics">
+                <span>◔</span>
+                <span data-i18n="Analytics">Analytics</span>
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <button id="themeToggle" class="theme-btn">
+                🌙 Dark Mode
+            </button>
+
+            <button id="logoutBtn" class="theme-btn logout-btn">
+                ↩ <span data-i18n="Logout">Logout</span>
+            </button>
+
+            <select class="language-select" data-language-select aria-label="Choose language">
+                <option value="en">English</option>
+                <option value="hi">हिन्दी</option>
+            </select>
+
+            <div class="user-box">
+                <div class="avatar" id="userAvatar">U</div>
+                <div>
+                    <strong id="userDisplayName">User</strong>
+                    <small id="userAccountType">Personal Account</small>
+                </div>
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- Main Content -->
+    <main class="main">
+
+        <!-- Topbar -->
+        <header class="topbar">
+
+            <div class="topbar-brand">
+                <div class="logo-icon">₹</div>
+
+                <div>
+                <p class="welcome" data-i18n="Welcome back 👋">Welcome back 👋</p>
+                <h1 data-i18n="Financial Dashboard">Financial Dashboard</h1>
+                </div>
+            </div>
+
+            <div class="topbar-right">
+
+                <span id="currentDate"></span>
+
+                <button class="export-btn" id="exportExpenses">
+                    <span data-i18n="↓ Export CSV">↓ Export CSV</span>
+                </button>
+
+                <button class="export-btn" id="printBill">
+                    <span data-i18n="🖨 Print Bill">🖨 Print Bill</span>
+                </button>
+
+                    <button class="add-top-btn"
+                        id="showAddExpense">
+                    <span data-i18n="+ Add Expense">+ Add Expense</span>
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- Summary Cards -->
+        <section class="summary-grid" data-view-section="dashboard">
+
+            <div class="summary-card">
+
+                <div class="card-top">
+                    <span data-i18n="Total Spending">Total Spending</span>
+                    <div class="card-icon">₹</div>
+                </div>
+
+                <h2 id="totalExpense">₹0</h2>
+
+                <p class="card-info">
+                    <span data-i18n="All recorded expenses">All recorded expenses</span>
+                </p>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="card-top">
+                    <span data-i18n="Today's Spending">Today's Spending</span>
+                    <div class="card-icon">◷</div>
+                </div>
+
+                <h2 id="todayExpense">₹0</h2>
+
+                <p class="card-info">
+                    <span data-i18n="Expenses today">Expenses today</span>
+                </p>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="card-top">
+                    <span data-i18n="This Month">This Month</span>
+                    <div class="card-icon">▣</div>
+                </div>
+
+                <h2 id="monthlyExpense">₹0</h2>
+
+                <p class="card-info">
+                    <span data-i18n="Current month">Current month</span>
+                </p>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="card-top">
+                    <span data-i18n="Transactions">Transactions</span>
+                    <div class="card-icon">↕</div>
+                </div>
+
+                <h2 id="transactionCount">0</h2>
+
+                <p class="card-info">
+                    <span data-i18n="Total transactions">Total transactions</span>
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <section class="panel budget-panel" data-view-section="dashboard">
+
+            <div class="panel-header">
+
+                <div>
+                    <h2 data-i18n="Monthly Budget">Monthly Budget</h2>
+                    <p data-i18n="Set a limit and keep your spending on track">Set a limit and keep your spending on track</p>
+                </div>
+
+                <span id="budgetStatus" class="budget-status">No budget set</span>
+
+            </div>
+
+            <div class="budget-layout">
+
+                <div class="budget-input-wrap">
+                    <label for="budgetInput" data-i18n="Budget limit">Budget limit</label>
+                    <div class="budget-input-row">
+                        <span>₹</span>
+                        <input type="number" id="budgetInput" min="1" placeholder="e.g. 25000">
+                        <button id="saveBudget" class="secondary-btn" data-i18n="Save budget">Save budget</button>
+                    </div>
+                </div>
+
+                <div class="budget-summary">
+                    <strong id="budgetRemaining">Set a budget to start</strong>
+                    <span id="budgetProgressText">Current month spending will appear here</span>
+                </div>
+
+            </div>
+
+            <div class="budget-track" aria-label="Monthly budget progress">
+                <div id="budgetProgress" class="budget-progress"></div>
+            </div>
+
+        </section>
+
+
+        <!-- AI Spending Insights -->
+        <section class="panel insights-panel" data-view-section="dashboard">
+
+            <div class="panel-header">
+
+                <div>
+                    <h2 data-i18n="AI Spending Insights">AI Spending Insights</h2>
+                    <p data-i18n="Smart comparison of this month with last month">Smart comparison of this month with last month</p>
+                </div>
+
+                <div class="insights-badge">✦ Smart analysis</div>
+
+            </div>
+
+            <div id="aiInsights" class="insights-grid">
+                <!-- Insights generated by JS -->
+            </div>
+
+        </section>
+
+
+        <section class="panel pulse-panel" data-view-section="dashboard">
+
+            <div class="panel-header">
+
+                <div>
+                    <h2 data-i18n="Monthly Pulse">Monthly Pulse</h2>
+                    <p data-i18n="A quick read on where your money is going">A quick read on where your money is going</p>
+                </div>
+
+                <span class="pulse-status">Live from your expenses</span>
+
+            </div>
+
+            <div class="pulse-grid">
+
+                <div class="pulse-stat">
+                    <span data-i18n="Daily pace">Daily pace</span>
+                    <strong id="spendingPace">₹0.00</strong>
+                    <small>Average spent per active day</small>
+                </div>
+
+                <div class="pulse-stat">
+                    <span data-i18n="Month projection">Month projection</span>
+                    <strong id="projectedSpend">₹0.00</strong>
+                    <small>Estimated total by month end</small>
+                </div>
+
+                <div class="pulse-stat">
+                    <span data-i18n="Focus category">Focus category</span>
+                    <strong id="focusCategory">No data yet</strong>
+                    <small>Highest current-month spending</small>
+                </div>
+
+            </div>
+
+            <div class="pace-track" aria-label="Monthly spending pace">
+                <div id="paceProgress" class="pace-progress"></div>
+            </div>
+
+        </section>
+
+
+        <!-- Analytics -->
+        <section class="analytics-grid" id="analytics" data-view-section="analytics">
+
+            <div class="panel chart-panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <h2 data-i18n="Spending Overview">Spending Overview</h2>
+                        <p data-i18n="Category-wise expense distribution">Category-wise expense distribution</p>
+                    </div>
+
+                    <select id="chartPeriod">
+                        <option value="month" data-i18n="This Month">This Month</option>
+                        <option value="all" data-i18n="All Time">All Time</option>
+                    </select>
+
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="expenseChart"></canvas>
+                </div>
+
+            </div>
+
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <h2 data-i18n="Categories">Categories</h2>
+                        <p data-i18n="Your spending breakdown">Your spending breakdown</p>
+                    </div>
+
+                </div>
+
+                <div id="categorySummary">
+                    <!-- Categories generated by JS -->
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- Add Expense -->
+        <section class="panel add-expense-panel" data-view-section="expenses">
+
+            <div class="panel-header">
+
+                <div>
+                    <h2 data-i18n="Add New Expense">Add New Expense</h2>
+                    <p data-i18n="Record your spending details">Record your spending details</p>
+                </div>
+
+            </div>
+
+
+            <form id="expenseForm">
+
+                <div class="input-group">
+
+                    <label data-i18n="Description">Description</label>
+
+                    <input
+                        type="text"
+                        id="description"
+                        placeholder="e.g. Grocery shopping"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="input-group">
+
+                    <label data-i18n="Amount">Amount</label>
+
+                    <div class="amount-input">
+                        <span>₹</span>
+
+                        <input
+                            type="number"
+                            id="amount"
+                            placeholder="0.00"
+                            min="1"
+                            required
+                        >
+                    </div>
+
+                </div>
+
+
+                <div class="input-group">
+
+                    <label data-i18n="Category">Category</label>
+
+                    <select id="category" required>
+
+                        <option value="" data-i18n="Select category">
+                            Select category
+                        </option>
+
+                        <option value="Food">
+                            🍔 Food
+                        </option>
+
+                        <option value="Travel">
+                            🚌 Travel
+                        </option>
+
+                        <option value="Shopping">
+                            🛍️ Shopping
+                        </option>
+
+                        <option value="Education">
+                            📚 Education
+                        </option>
+
+                        <option value="Bills">
+                            💡 Bills
+                        </option>
+
+                        <option value="Other">
+                            📦 Other
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="input-group">
+
+                    <label data-i18n="Date">Date</label>
+
+                    <input
+                        type="date"
+                        id="date"
+                        required
+                    >
+
+                </div>
+
+
+                <button type="submit" class="submit-btn">
+                    <span data-i18n="+ Add Expense">+ Add Expense</span>
+                </button>
+
+            </form>
+
+        </section>
+
+
+        <!-- Expense History -->
+        <section class="panel expenses-panel" id="expenses" data-view-section="expenses">
+
+            <div class="panel-header">
+
+                <div>
+                    <h2 data-i18n="Recent Expenses">Recent Expenses</h2>
+                    <p data-i18n="Manage your transactions">Manage your transactions</p>
+                </div>
+
+                <span id="expenseCountLabel">
+                    0 transactions
+                </span>
+
+            </div>
+
+
+            <!-- Filters -->
+            <div class="filters">
+
+                <div class="search-box">
+
+                    <span>⌕</span>
+
+                    <input
+                        type="text"
+                        id="search"
+                        placeholder="Search expenses..." data-i18n-placeholder="Search expenses..."
+                    >
+
+                </div>
+
+
+                <select id="filterCategory">
+
+                    <option value="All">
+                        All Categories
+                    </option>
+
+                    <option value="Food">
+                        Food
+                    </option>
+
+                    <option value="Travel">
+                        Travel
+                    </option>
+
+                    <option value="Shopping">
+                        Shopping
+                    </option>
+
+                    <option value="Education">
+                        Education
+                    </option>
+
+                    <option value="Bills">
+                        Bills
+                    </option>
+
+                    <option value="Other">
+                        Other
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div id="expenseList">
+                <!-- Expenses generated by JS -->
+            </div>
+
+        </section>
+
+
+        <footer>
+            <p data-i18n="ExpenseFlow © 2026 • Personal Expense Management">ExpenseFlow © 2026 • Personal Expense Management</p>
+        </footer>
+
+    </main>
+
+</div>
+
+<div id="budgetAlertModal" class="budget-alert-modal" hidden>
+    <div class="budget-alert-card" role="alertdialog" aria-modal="true" aria-labelledby="budgetAlertTitle">
+        <div class="budget-alert-icon">!</div>
+        <h2 id="budgetAlertTitle">Budget exceeded</h2>
+        <p id="budgetAlertMessage"></p>
+        <button type="button" id="closeBudgetAlert" class="budget-alert-close">OK</button>
+    </div>
+</div>
+
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+    // Firebase web configuration.
+    window.EXPENSEFLOW_FIREBASE_CONFIG = {
+        apiKey: "AIzaSyB5QpEJYFFg1bGaQztCNyQBO2OZn6cXo1k",
+        authDomain: "expotrack-b0cf5.firebaseapp.com",
+        databaseURL: "https://expotrack-b0cf5-default-rtdb.firebaseio.com",
+        projectId: "expotrack-b0cf5",
+        storageBucket: "expotrack-b0cf5.firebasestorage.app",
+        messagingSenderId: "532010909722",
+        appId: "1:532010909722:web:bc4353a883f3f02a7911a3",
+        measurementId: "G-M9YQ9RVJYT"
+    };
+</script>
+<script src="script.js"></script>
+
+</body>
+</html> 
