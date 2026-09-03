@@ -13,6 +13,9 @@ const categoryInput = document.getElementById("category");
 const dateInput = document.getElementById("date");
 
 const expenseList = document.getElementById("expenseList");
+const payableList = document.getElementById("payableList");
+const receivableList = document.getElementById("receivableList");
+const emiList = document.getElementById("emiList");
 
 const searchInput = document.getElementById("search");
 const filterCategory = document.getElementById("filterCategory");
@@ -21,6 +24,13 @@ const totalExpense = document.getElementById("totalExpense");
 const todayExpense = document.getElementById("todayExpense");
 const monthlyExpense = document.getElementById("monthlyExpense");
 const transactionCount = document.getElementById("transactionCount");
+const duePayableTotal = document.getElementById("duePayableTotal");
+const duePayableCount = document.getElementById("duePayableCount");
+const dueReceivableTotal = document.getElementById("dueReceivableTotal");
+const dueReceivableCount = document.getElementById("dueReceivableCount");
+const emiDueThisMonth = document.getElementById("emiDueThisMonth");
+const emiDueCount = document.getElementById("emiDueCount");
+const emiReminder = document.getElementById("emiReminder");
 
 const aiInsights = document.getElementById("aiInsights");
 
@@ -67,6 +77,9 @@ const showAddExpenseButton =
 let currentUser = null;
 let firebaseUser = null;
 let expenses = [];
+let payables = [];
+let receivables = [];
+let emis = [];
 
 let editingId = null;
 
@@ -500,6 +513,9 @@ if (auth) {
 
         if (!user) {
             expenses = [];
+            payables = [];
+            receivables = [];
+            emis = [];
             monthlyBudget = 0;
             authForm.reset();
             setAuthMode("login");
@@ -526,11 +542,15 @@ if (auth) {
             ]);
             const data = snapshot.val() || {};
             expenses = Array.isArray(data.expenses) ? data.expenses : [];
+            payables = Array.isArray(data.payables) ? data.payables : [];
+            receivables = Array.isArray(data.receivables) ? data.receivables : [];
+            emis = Array.isArray(data.emis) ? data.emis : [];
             monthlyBudget = Number(data.budget) || 0;
             displayExpenses();
             updateDashboard();
             updateCategorySummary();
             updateChart();
+            renderDueSections();
             authForm.reset();
             authMessage.textContent = "";
             authMessage.classList.remove("success");
@@ -569,7 +589,10 @@ currentDate.textContent =
 function saveExpenses() {
     if (!firebaseUser) return Promise.resolve();
     return db.ref(`users/${firebaseUser.uid}`).update({
-        expenses: expenses
+        expenses: expenses,
+        payables: payables,
+        receivables: receivables,
+        emis: emis
     }).catch(showDatabaseError);
 }
 
@@ -578,6 +601,243 @@ function saveBudgetToUser() {
     return db.ref(`users/${firebaseUser.uid}`).update({
         budget: monthlyBudget
     }).catch(showDatabaseError);
+}
+
+function getMonthKeyForDate(dateValue) {
+    if (!dateValue) return "";
+    const date = new Date(dateValue + "T00:00:00");
+    if (Number.isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
+}
+
+function updateDueSummary() {
+    const pendingPayables = payables.filter(function(item) { return !item.paid; });
+    const pendingReceivables = receivables.filter(function(item) { return !item.paid; });
+    const activeEmis = emis.filter(function(item) { return !item.paid; });
+
+    const payableTotal = pendingPayables.reduce(function(sum, item) {
+        return sum + Number(item.amount || 0);
+    }, 0);
+
+    const receivableTotal = pendingReceivables.reduce(function(sum, item) {
+        return sum + Number(item.amount || 0);
+    }, 0);
+
+    const monthKey = getMonthKeyForDate(today);
+    const emiMonthTotal = activeEmis
+        .filter(function(item) {
+            const isThisMonth = item.month === monthKey || item.dueMonth === monthKey;
+            return isThisMonth && Number(item.amount || 0) > 0;
+        })
+        .reduce(function(sum, item) {
+            return sum + Number(item.amount || 0);
+        }, 0);
+
+    if (duePayableTotal) duePayableTotal.textContent = formatCurrency(payableTotal);
+    if (duePayableCount) duePayableCount.textContent = `${pendingPayables.length} pending`;
+    if (dueReceivableTotal) dueReceivableTotal.textContent = formatCurrency(receivableTotal);
+    if (dueReceivableCount) dueReceivableCount.textContent = `${pendingReceivables.length} pending`;
+    if (emiDueThisMonth) emiDueThisMonth.textContent = formatCurrency(emiMonthTotal);
+    if (emiDueCount) emiDueCount.textContent = `${activeEmis.length} active`;
+
+    if (emiReminder) {
+        if (emiMonthTotal > 0) {
+            emiReminder.textContent = `Reminder: pay ${formatCurrency(emiMonthTotal)} in EMI this month.`;
+            emiReminder.classList.add("warning");
+        } else {
+            emiReminder.textContent = "No EMI due this month.";
+            emiReminder.classList.remove("warning");
+        }
+    }
+}
+
+function renderInlineList(target, items, type) {
+    if (!target) return;
+    target.innerHTML = "";
+
+    if (!items.length) {
+        target.innerHTML = '<div class="empty-state">No records yet.</div>';
+        return;
+    }
+
+    items.forEach(function(item) {
+        const row = document.createElement("div");
+        row.className = "inline-item";
+
+        const title = type === "payable" ? item.name : type === "receivable" ? item.name : item.title;
+        const meta = type === "emi"
+            ? `${item.month || "Monthly"} • ${formatCurrency(item.amount)}`
+            : `${formatDate(item.date)} • ${formatCurrency(item.amount)}`;
+
+        row.innerHTML = `
+            <div>
+                <strong>${escapeHTML(title)}</strong>
+                <span>${escapeHTML(meta)}</span>
+            </div>
+            <div class="inline-actions">
+                ${type === "emi" ? `<button class="mark-paid" type="button">${item.paid ? "Unmark" : "Paid"}</button>` : `<button class="mark-paid" type="button">${item.paid ? "Reopen" : "Mark paid"}</button>`}
+                <button class="delete-item" type="button">Delete</button>
+            </div>
+        `;
+
+        const markButton = row.querySelector(".mark-paid");
+        const deleteButton = row.querySelector(".delete-item");
+
+        markButton.addEventListener("click", function() {
+            if (type === "payable") {
+                togglePayablePaid(item.id);
+            } else if (type === "receivable") {
+                toggleReceivablePaid(item.id);
+            } else {
+                toggleEmiPaid(item.id);
+            }
+        });
+
+        deleteButton.addEventListener("click", function() {
+            if (type === "payable") {
+                deletePayable(item.id);
+            } else if (type === "receivable") {
+                deleteReceivable(item.id);
+            } else {
+                deleteEmi(item.id);
+            }
+        });
+
+        target.appendChild(row);
+    });
+}
+
+function renderDueSections() {
+    renderInlineList(payableList, payables, "payable");
+    renderInlineList(receivableList, receivables, "receivable");
+    renderInlineList(emiList, emis, "emi");
+    updateDueSummary();
+}
+
+function addPayable(event) {
+    event.preventDefault();
+    const name = document.getElementById("payableName").value.trim();
+    const amount = Number(document.getElementById("payableAmount").value);
+    const date = document.getElementById("payableDate").value;
+
+    if (!name || amount <= 0 || !date) {
+        alert("Please enter valid payable details.");
+        return;
+    }
+
+    payables.push({
+        id: Date.now(),
+        name: name,
+        amount: amount,
+        date: date,
+        paid: false
+    });
+
+    document.getElementById("payableForm").reset();
+    saveExpenses();
+    renderDueSections();
+}
+
+function addReceivable(event) {
+    event.preventDefault();
+    const name = document.getElementById("receivableName").value.trim();
+    const amount = Number(document.getElementById("receivableAmount").value);
+    const date = document.getElementById("receivableDate").value;
+
+    if (!name || amount <= 0 || !date) {
+        alert("Please enter valid receivable details.");
+        return;
+    }
+
+    receivables.push({
+        id: Date.now(),
+        name: name,
+        amount: amount,
+        date: date,
+        paid: false
+    });
+
+    document.getElementById("receivableForm").reset();
+    saveExpenses();
+    renderDueSections();
+}
+
+function addEmi(event) {
+    event.preventDefault();
+    const title = document.getElementById("emiTitle").value.trim();
+    const amount = Number(document.getElementById("emiAmount").value);
+    const month = document.getElementById("emiMonth").value;
+
+    if (!title || amount <= 0 || !month) {
+        alert("Please enter valid EMI details.");
+        return;
+    }
+
+    emis.push({
+        id: Date.now(),
+        title: title,
+        amount: amount,
+        month: month,
+        dueMonth: month,
+        paid: false
+    });
+
+    document.getElementById("emiForm").reset();
+    saveExpenses();
+    renderDueSections();
+}
+
+function togglePayablePaid(id) {
+    payables = payables.map(function(item) {
+        if (item.id === id) {
+            return { ...item, paid: !item.paid };
+        }
+        return item;
+    });
+    saveExpenses();
+    renderDueSections();
+}
+
+function toggleReceivablePaid(id) {
+    receivables = receivables.map(function(item) {
+        if (item.id === id) {
+            return { ...item, paid: !item.paid };
+        }
+        return item;
+    });
+    saveExpenses();
+    renderDueSections();
+}
+
+function toggleEmiPaid(id) {
+    emis = emis.map(function(item) {
+        if (item.id === id) {
+            return { ...item, paid: !item.paid };
+        }
+        return item;
+    });
+    saveExpenses();
+    renderDueSections();
+}
+
+function deletePayable(id) {
+    payables = payables.filter(function(item) { return item.id !== id; });
+    saveExpenses();
+    renderDueSections();
+}
+
+function deleteReceivable(id) {
+    receivables = receivables.filter(function(item) { return item.id !== id; });
+    saveExpenses();
+    renderDueSections();
+}
+
+function deleteEmi(id) {
+    emis = emis.filter(function(item) { return item.id !== id; });
+    saveExpenses();
+    renderDueSections();
 }
 
 
@@ -1044,6 +1304,7 @@ function updateDashboard() {
     updateMonthlyPulse(monthTotal);
     updateBudget(monthTotal);
     updateAIInsights();
+    renderDueSections();
 
 }
 
@@ -1106,6 +1367,14 @@ saveBudgetButton.addEventListener("click", function() {
     }
 
 });
+
+const payableForm = document.getElementById("payableForm");
+const receivableForm = document.getElementById("receivableForm");
+const emiForm = document.getElementById("emiForm");
+
+if (payableForm) payableForm.addEventListener("submit", addPayable);
+if (receivableForm) receivableForm.addEventListener("submit", addReceivable);
+if (emiForm) emiForm.addEventListener("submit", addEmi);
 
 
 function exportExpensesAsCSV() {
@@ -1991,6 +2260,8 @@ function escapeHTML(text) {
 applyLanguage();
 
 displayExpenses();
+
+renderDueSections();
 
 updateDashboard();
 

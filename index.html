@@ -256,6 +256,79 @@
 
         </section>
 
+        <section class="panel due-panel" data-view-section="dashboard">
+
+            <div class="panel-header">
+
+                <div>
+                    <h2>Due & EMI Tracker</h2>
+                    <p>Track what you owe, what others owe you, and your monthly EMIs</p>
+                </div>
+
+            </div>
+
+            <div class="dues-summary-grid">
+
+                <div class="due-metric due-payable">
+                    <span>Due I pay</span>
+                    <strong id="duePayableTotal">₹0.00</strong>
+                    <small id="duePayableCount">0 pending</small>
+                </div>
+
+                <div class="due-metric due-receivable">
+                    <span>Due to receive</span>
+                    <strong id="dueReceivableTotal">₹0.00</strong>
+                    <small id="dueReceivableCount">0 pending</small>
+                </div>
+
+                <div class="due-metric due-emi">
+                    <span>EMI due this month</span>
+                    <strong id="emiDueThisMonth">₹0.00</strong>
+                    <small id="emiDueCount">0 active</small>
+                </div>
+
+            </div>
+
+            <div class="due-grid">
+
+                <div class="due-card">
+                    <h3>Due I have to pay</h3>
+                    <form id="payableForm" class="mini-form">
+                        <input type="text" id="payableName" placeholder="Who do you owe?" required>
+                        <input type="number" id="payableAmount" placeholder="Amount" min="1" required>
+                        <input type="date" id="payableDate" required>
+                        <button type="submit" class="secondary-btn">Add payable</button>
+                    </form>
+                    <div id="payableList" class="inline-list"></div>
+                </div>
+
+                <div class="due-card">
+                    <h3>Due money from others</h3>
+                    <form id="receivableForm" class="mini-form">
+                        <input type="text" id="receivableName" placeholder="Who owes you?" required>
+                        <input type="number" id="receivableAmount" placeholder="Amount" min="1" required>
+                        <input type="date" id="receivableDate" required>
+                        <button type="submit" class="secondary-btn">Add receivable</button>
+                    </form>
+                    <div id="receivableList" class="inline-list"></div>
+                </div>
+
+                <div class="due-card emi-card">
+                    <h3>EMI purchase reminder</h3>
+                    <form id="emiForm" class="mini-form">
+                        <input type="text" id="emiTitle" placeholder="Purchase / EMI name" required>
+                        <input type="number" id="emiAmount" placeholder="Monthly EMI" min="1" required>
+                        <input type="month" id="emiMonth" required>
+                        <button type="submit" class="secondary-btn">Add EMI</button>
+                    </form>
+                    <div id="emiReminder" class="emi-reminder">No EMI due this month.</div>
+                    <div id="emiList" class="inline-list"></div>
+                </div>
+
+            </div>
+
+        </section>
+
 
         <!-- AI Spending Insights -->
         <section class="panel insights-panel" data-view-section="dashboard">
