@@ -407,11 +407,37 @@
                         <p data-i18n="Category-wise expense distribution">Category-wise expense distribution</p>
                     </div>
 
-                    <select id="chartPeriod">
+                    <select id="chartPeriod" aria-label="Analytics period">
                         <option value="month" data-i18n="This Month">This Month</option>
                         <option value="all" data-i18n="All Time">All Time</option>
                     </select>
 
+                </div>
+
+                <div class="analytics-range" id="analyticsRange" hidden>
+                    <label>
+                        <span data-i18n="From">From</span>
+                        <input type="datetime-local" id="analyticsStart">
+                    </label>
+                    <label>
+                        <span data-i18n="To">To</span>
+                        <input type="datetime-local" id="analyticsEnd">
+                    </label>
+                </div>
+
+                <div class="analytics-metrics" aria-live="polite">
+                    <div>
+                        <span data-i18n="Selected spending">Selected spending</span>
+                        <strong id="analyticsTotal">₹0.00</strong>
+                    </div>
+                    <div>
+                        <span data-i18n="Transactions">Transactions</span>
+                        <strong id="analyticsCount">0</strong>
+                    </div>
+                    <div>
+                        <span data-i18n="Average transaction">Average transaction</span>
+                        <strong id="analyticsAverage">₹0.00</strong>
+                    </div>
                 </div>
 
                 <div class="chart-container">

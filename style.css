@@ -849,11 +849,61 @@ nav {
     padding: 8px 10px;
 }
 
+.analytics-range {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: -8px 0 16px;
+}
+
+.analytics-range label,
+.analytics-metrics div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.analytics-range span,
+.analytics-metrics span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.analytics-range input {
+    padding: 8px 10px;
+}
+
+.analytics-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.analytics-metrics div {
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--background);
+}
+
+.analytics-metrics strong {
+    font-size: 15px;
+}
+
 
 /* Chart */
 
 .chart-container {
     height: 280px;
+}
+
+@media (max-width: 650px) {
+    .analytics-range,
+    .analytics-metrics {
+        grid-template-columns: 1fr;
+    }
 }
 
 

@@ -63,6 +63,18 @@ const themeToggle =
 
 const chartPeriod =
     document.getElementById("chartPeriod");
+const analyticsRange =
+    document.getElementById("analyticsRange");
+const analyticsStart =
+    document.getElementById("analyticsStart");
+const analyticsEnd =
+    document.getElementById("analyticsEnd");
+const analyticsTotal =
+    document.getElementById("analyticsTotal");
+const analyticsCount =
+    document.getElementById("analyticsCount");
+const analyticsAverage =
+    document.getElementById("analyticsAverage");
 
 const navigationLinks =
     document.querySelectorAll(".nav-link[data-view]");
@@ -1961,8 +1973,10 @@ function updateCategorySummary() {
 
     categorySummary.innerHTML = "";
 
+    const filteredExpenses = getAnalyticsExpenses();
 
-    if (expenses.length === 0) {
+
+    if (filteredExpenses.length === 0) {
 
         categorySummary.innerHTML = `
 
@@ -1985,7 +1999,7 @@ function updateCategorySummary() {
     const totals = {};
 
 
-    expenses.forEach(function(expense) {
+    filteredExpenses.forEach(function(expense) {
 
         if (!totals[expense.category]) {
 
@@ -2063,6 +2077,81 @@ function updateCategorySummary() {
 // CHART
 // ==========================================
 
+function getExpenseTimestamp(expense) {
+    const expenseDate = getExpenseDate(expense);
+
+    return expenseDate
+        ? new Date(`${expenseDate}T00:00:00`).getTime()
+        : NaN;
+}
+
+function populateAnalyticsPeriods() {
+    const selectedPeriod = chartPeriod.value || "month";
+    const monthKeys = [...new Set(expenses
+        .map(getExpenseDate)
+        .filter(Boolean)
+        .map(function(date) { return date.substring(0, 7); }))]
+        .sort()
+        .reverse();
+
+    chartPeriod.innerHTML = `
+        <option value="month">This Month</option>
+        <option value="all">All Time</option>
+        ${monthKeys.map(function(monthKey) {
+            const monthDate = new Date(`${monthKey}-01T00:00:00`);
+            return `<option value="${monthKey}">${monthDate.toLocaleDateString("en-IN", {
+                month: "long",
+                year: "numeric"
+            })}</option>`;
+        }).join("")}
+        <option value="custom">Custom time range</option>
+    `;
+
+    chartPeriod.value = [...chartPeriod.options].some(function(option) {
+        return option.value === selectedPeriod;
+    }) ? selectedPeriod : "month";
+}
+
+function getAnalyticsExpenses() {
+    const period = chartPeriod.value;
+
+    if (period === "all") return expenses;
+
+    if (period === "custom") {
+        const start = analyticsStart.value
+            ? new Date(analyticsStart.value).getTime()
+            : -Infinity;
+        const end = analyticsEnd.value
+            ? new Date(analyticsEnd.value).getTime()
+            : Infinity;
+
+        return start <= end
+            ? expenses.filter(function(expense) {
+                const timestamp = getExpenseTimestamp(expense);
+                return timestamp >= start && timestamp <= end;
+            })
+            : [];
+    }
+
+    const monthKey = period === "month" ? today.substring(0, 7) : period;
+
+    return expenses.filter(function(expense) {
+        return getExpenseDate(expense).startsWith(monthKey);
+    });
+}
+
+function updateAnalyticsMetrics(filteredExpenses) {
+    const total = filteredExpenses.reduce(function(sum, expense) {
+        return sum + Number(expense.amount);
+    }, 0);
+
+    analyticsTotal.textContent = formatCurrency(total);
+    analyticsCount.textContent = filteredExpenses.length;
+    analyticsAverage.textContent = formatCurrency(
+        filteredExpenses.length ? total / filteredExpenses.length : 0
+    );
+}
+
 function updateChart() {
 
     const canvas =
@@ -2074,29 +2163,10 @@ function updateChart() {
     if (!canvas) return;
 
 
-    const period =
-        chartPeriod.value;
-
-
-    let chartExpenses = expenses;
-
-
-    if (period === "month") {
-
-        const currentMonth =
-            today.substring(0, 7);
-
-
-        chartExpenses =
-            expenses.filter(function(expense) {
-
-                return getExpenseDate(expense).startsWith(
-                    currentMonth
-                );
-
-            });
-
-    }
+    populateAnalyticsPeriods();
+    const chartExpenses = getAnalyticsExpenses();
+    updateAnalyticsMetrics(chartExpenses);
+    analyticsRange.hidden = chartPeriod.value !== "custom";
 
 
     const categoryTotals = {};
@@ -2209,8 +2279,21 @@ filterCategory.addEventListener(
 
 chartPeriod.addEventListener(
     "change",
-    updateChart
+    function() {
+        updateChart();
+        updateCategorySummary();
+    }
 );
+
+analyticsStart.addEventListener("change", function() {
+    updateChart();
+    updateCategorySummary();
+});
+
+analyticsEnd.addEventListener("change", function() {
+    updateChart();
+    updateCategorySummary();
+});
 
 
 // ==========================================
