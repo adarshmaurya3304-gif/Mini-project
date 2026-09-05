@@ -31,6 +31,8 @@ const dueReceivableCount = document.getElementById("dueReceivableCount");
 const emiDueThisMonth = document.getElementById("emiDueThisMonth");
 const emiDueCount = document.getElementById("emiDueCount");
 const emiReminder = document.getElementById("emiReminder");
+const emiDateInput = document.getElementById("emiDate");
+const emiEmailInput = document.getElementById("emiEmail");
 
 const aiInsights = document.getElementById("aiInsights");
 
@@ -88,6 +90,7 @@ let expenseChart = null;
 let monthlyBudget = 0;
 
 const firebaseConfig = window.EXPENSEFLOW_FIREBASE_CONFIG || {};
+const emailConfig = window.EXPENSEFLOW_EMAIL_CONFIG || {};
 const firebaseConfigured = typeof firebase !== "undefined" &&
     firebaseConfig.apiKey &&
     !firebaseConfig.apiKey.startsWith("PASTE_") &&
@@ -98,6 +101,10 @@ const firebaseApp = firebaseConfigured
     : null;
 const auth = firebaseApp ? firebase.auth() : null;
 const db = firebaseApp ? firebase.database() : null;
+
+if (window.emailjs && emailConfig.publicKey) {
+    emailjs.init({ publicKey: emailConfig.publicKey });
+}
 
 
 // ---------- SINGLE-PAGE VIEWS ----------
@@ -524,6 +531,9 @@ if (auth) {
         }
 
         updateUserDisplay();
+        if (emiEmailInput && user.email && !emiEmailInput.value) {
+            emiEmailInput.value = user.email.includes("@expenseflow.app") ? "" : user.email;
+        }
         showAppScreen();
         showView("dashboard");
         displayExpenses();
@@ -569,6 +579,7 @@ const today =
     new Date().toISOString().split("T")[0];
 
 dateInput.value = today;
+if (emiDateInput) emiDateInput.value = today;
 
 
 // ---------- CURRENT DATE DISPLAY ----------
@@ -612,6 +623,74 @@ function getMonthKeyForDate(dateValue) {
     return `${year}-${month}`;
 }
 
+function getEmiDueDate(item, referenceDate) {
+    const dateValue = item.dueDate || item.date;
+    if (!dateValue) return null;
+
+    const sourceDate = new Date(`${dateValue}T00:00:00`);
+    if (Number.isNaN(sourceDate.getTime())) return null;
+
+    const date = referenceDate ? new Date(`${referenceDate}T00:00:00`) : new Date();
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    const day = Math.min(sourceDate.getDate(), lastDay);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function getEmiStatus(item) {
+    const dueDate = getEmiDueDate(item, today);
+    if (!dueDate) return "No due date";
+    if (dueDate < today) return `Overdue since ${formatDate(dueDate)}`;
+    if (dueDate === today) return "Due today";
+    return `Due ${formatDate(dueDate)}`;
+}
+
+function sendEmiEmail(item, dueDate) {
+    if (!window.emailjs || !emailConfig.publicKey || !emailConfig.serviceId || !emailConfig.templateId || !item.email) {
+        return Promise.resolve(false);
+    }
+
+    return emailjs.send(emailConfig.serviceId, emailConfig.templateId, {
+        to_email: item.email,
+        emi_title: item.title,
+        emi_amount: formatCurrency(item.amount),
+        due_date: formatDate(dueDate)
+    }).then(function() {
+        return true;
+    }).catch(function(error) {
+        console.error("EMI email notification failed:", error);
+        return false;
+    });
+}
+
+function notifyDueEmis() {
+    const dueEmis = emis.filter(function(item) {
+        const dueDate = getEmiDueDate(item, today);
+        return !item.paid && dueDate && dueDate <= today;
+    });
+
+    if (!dueEmis.length) return;
+
+    const reminderKey = `emi-reminder-${today}`;
+    const alreadyNotified = JSON.parse(localStorage.getItem(reminderKey) || "[]");
+    const newDueEmis = dueEmis.filter(function(item) {
+        return !alreadyNotified.includes(String(item.id));
+    });
+
+    newDueEmis.forEach(function(item) {
+        const dueDate = getEmiDueDate(item, today);
+        const message = `${item.title}: ${formatCurrency(item.amount)} ${dueDate === today ? "is due today" : "is overdue"}.`;
+
+        if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("EMI payment reminder", { body: message });
+        }
+
+        sendEmiEmail(item, dueDate);
+        alreadyNotified.push(String(item.id));
+    });
+
+    localStorage.setItem(reminderKey, JSON.stringify(alreadyNotified));
+}
+
 function updateDueSummary() {
     const pendingPayables = payables.filter(function(item) { return !item.paid; });
     const pendingReceivables = receivables.filter(function(item) { return !item.paid; });
@@ -628,8 +707,9 @@ function updateDueSummary() {
     const monthKey = getMonthKeyForDate(today);
     const emiMonthTotal = activeEmis
         .filter(function(item) {
-            const isThisMonth = item.month === monthKey || item.dueMonth === monthKey;
-            return isThisMonth && Number(item.amount || 0) > 0;
+            const isRecurringEmi = item.dueDate || item.date;
+            const isLegacyCurrentMonth = item.month === monthKey || item.dueMonth === monthKey;
+            return (isRecurringEmi || isLegacyCurrentMonth) && Number(item.amount || 0) > 0;
         })
         .reduce(function(sum, item) {
             return sum + Number(item.amount || 0);
@@ -643,9 +723,17 @@ function updateDueSummary() {
     if (emiDueCount) emiDueCount.textContent = `${activeEmis.length} active`;
 
     if (emiReminder) {
-        if (emiMonthTotal > 0) {
-            emiReminder.textContent = `Reminder: pay ${formatCurrency(emiMonthTotal)} in EMI this month.`;
+        const dueNow = activeEmis.filter(function(item) {
+            const dueDate = getEmiDueDate(item, today);
+            return dueDate && dueDate <= today;
+        });
+
+        if (dueNow.length > 0) {
+            emiReminder.textContent = `${dueNow.length} EMI reminder${dueNow.length > 1 ? "s" : ""}: ${dueNow.map(function(item) { return item.title; }).join(", ")} - pay ${formatCurrency(dueNow.reduce(function(sum, item) { return sum + Number(item.amount || 0); }, 0))}.`;
             emiReminder.classList.add("warning");
+        } else if (emiMonthTotal > 0) {
+            emiReminder.textContent = `Reminder: pay ${formatCurrency(emiMonthTotal)} in EMI this month.`;
+            emiReminder.classList.remove("warning");
         } else {
             emiReminder.textContent = "No EMI due this month.";
             emiReminder.classList.remove("warning");
@@ -668,7 +756,7 @@ function renderInlineList(target, items, type) {
 
         const title = type === "payable" ? item.name : type === "receivable" ? item.name : item.title;
         const meta = type === "emi"
-            ? `${item.month || "Monthly"} • ${formatCurrency(item.amount)}`
+            ? `${getEmiStatus(item)} • ${formatCurrency(item.amount)}${item.email ? ` • ${item.email}` : ""}`
             : `${formatDate(item.date)} • ${formatCurrency(item.amount)}`;
 
         row.innerHTML = `
@@ -714,6 +802,7 @@ function renderDueSections() {
     renderInlineList(receivableList, receivables, "receivable");
     renderInlineList(emiList, emis, "emi");
     updateDueSummary();
+    notifyDueEmis();
 }
 
 function addPayable(event) {
@@ -768,9 +857,10 @@ function addEmi(event) {
     event.preventDefault();
     const title = document.getElementById("emiTitle").value.trim();
     const amount = Number(document.getElementById("emiAmount").value);
-    const month = document.getElementById("emiMonth").value;
+    const dueDate = emiDateInput.value;
+    const email = emiEmailInput.value.trim();
 
-    if (!title || amount <= 0 || !month) {
+    if (!title || amount <= 0 || !dueDate || !email) {
         alert("Please enter valid EMI details.");
         return;
     }
@@ -779,14 +869,26 @@ function addEmi(event) {
         id: Date.now(),
         title: title,
         amount: amount,
-        month: month,
-        dueMonth: month,
+        dueDate: dueDate,
+        month: dueDate.substring(0, 7),
+        email: email,
         paid: false
     });
 
     document.getElementById("emiForm").reset();
+    if (emiDateInput) emiDateInput.value = today;
+    if (emiEmailInput && firebaseUser && firebaseUser.email && !firebaseUser.email.endsWith("@expenseflow.app")) {
+        emiEmailInput.value = firebaseUser.email;
+    }
     saveExpenses();
     renderDueSections();
+    requestNotificationPermission();
+}
+
+function requestNotificationPermission() {
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+    }
 }
 
 function togglePayablePaid(id) {

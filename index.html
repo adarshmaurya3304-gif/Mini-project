@@ -318,7 +318,9 @@
                     <form id="emiForm" class="mini-form">
                         <input type="text" id="emiTitle" placeholder="Purchase / EMI name" required>
                         <input type="number" id="emiAmount" placeholder="Monthly EMI" min="1" required>
-                        <input type="month" id="emiMonth" required>
+                        <label for="emiDate">Monthly due date</label>
+                        <input type="date" id="emiDate" required>
+                        <input type="email" id="emiEmail" placeholder="Reminder email" required>
                         <button type="submit" class="secondary-btn">Add EMI</button>
                     </form>
                     <div id="emiReminder" class="emi-reminder">No EMI due this month.</div>
@@ -644,6 +646,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
     // Firebase web configuration.
     window.EXPENSEFLOW_FIREBASE_CONFIG = {
@@ -655,6 +658,12 @@
         messagingSenderId: "532010909722",
         appId: "1:532010909722:web:bc4353a883f3f02a7911a3",
         measurementId: "G-M9YQ9RVJYT"
+    };
+    // Add EmailJS values to enable automatic EMI emails.
+    window.EXPENSEFLOW_EMAIL_CONFIG = {
+        publicKey: "",
+        serviceId: "",
+        templateId: ""
     };
 </script>
 <script src="script.js"></script>
